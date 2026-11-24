@@ -17,6 +17,7 @@ function letters_game_db_connection()
     $conn = new mysqli(LETTERS_DB_HOST, LETTERS_DB_USER, LETTERS_DB_PASSWORD, LETTERS_DB_NAME);
     $conn->set_charset('utf8mb4');
     letters_seed_questions($conn);
+    letters_ensure_multiplayer_tables($conn);
     return $conn;
 }
 
@@ -59,4 +60,44 @@ function letters_seed_questions($conn)
         $stmt->execute();
     }
     fclose($handle);
+}
+
+function letters_ensure_multiplayer_tables($conn)
+{
+    $conn->query("CREATE TABLE IF NOT EXISTS game_rooms (
+        id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        room_code CHAR(6) NOT NULL UNIQUE,
+        max_players INT NOT NULL,
+        status VARCHAR(12) NOT NULL DEFAULT 'lobby',
+        board_json LONGTEXT NOT NULL,
+        current_team VARCHAR(4) NOT NULL DEFAULT 'red',
+        winner VARCHAR(4) DEFAULT NULL,
+        moves_json LONGTEXT NOT NULL,
+        admin_token CHAR(64) DEFAULT NULL,
+        timer_seconds INT NOT NULL DEFAULT 60,
+        timer_deadline BIGINT DEFAULT NULL,
+        answer_mode VARCHAR(20) NOT NULL DEFAULT 'admin_judged',
+        title VARCHAR(160) NOT NULL DEFAULT 'مسابقة الحروف التفاعلية',
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $conn->query("CREATE TABLE IF NOT EXISTS game_players (
+        token CHAR(64) NOT NULL PRIMARY KEY,
+        room_id BIGINT UNSIGNED NOT NULL,
+        player_name VARCHAR(120) NOT NULL,
+        team VARCHAR(4) NOT NULL,
+        joined_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        INDEX (room_id),
+        CONSTRAINT fk_game_players_room FOREIGN KEY (room_id) REFERENCES game_rooms(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $conn->query("CREATE TABLE IF NOT EXISTS game_room_questions (
+        room_id BIGINT UNSIGNED NOT NULL,
+        cell_index TINYINT UNSIGNED NOT NULL,
+        question TEXT NOT NULL,
+        answer TEXT NOT NULL,
+        answer_revealed TINYINT(1) NOT NULL DEFAULT 0,
+        PRIMARY KEY (room_id),
+        CONSTRAINT fk_game_room_questions_room FOREIGN KEY (room_id) REFERENCES game_rooms(id) ON DELETE CASCADE
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 }
