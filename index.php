@@ -80,6 +80,9 @@ if (!filter_var($qrServerIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) || strpos($qr
         #presentation-question { font-size:clamp(24px,2.2vw,42px); line-height:1.5; }
         #presentation-answer { margin-top:20px; padding:18px; border-radius:14px; background:#ecfdf5; color:#166534; font-size:clamp(22px,2vw,36px); font-weight:900; }
         #presentation-winner { display:none; margin-top:18px; border-radius:14px; padding:16px; font-size:30px; font-weight:900; }
+        #presentation-join-qr { display:none; width:min(100%,220px); margin:16px auto 0; padding:12px; box-sizing:border-box; border-radius:14px; background:#fff; color:#243b55; }
+        #presentation-join-qr-image { display:block; width:min(100%,160px); aspect-ratio:1; object-fit:contain; margin:0 auto 8px; }
+        #presentation-join-link { display:block; font-size:12px; overflow-wrap:anywhere; }
         .winning-path { animation:winningFlash .75s ease-in-out infinite alternate!important; filter:saturate(1.35); }
         @media (max-width:900px){ #presentation-screen.active{grid-template-columns:1fr;} #presentation-board{grid-template-columns:repeat(5,minmax(52px,80px));} }
         @keyframes winningFlash { from{transform:scale(.94); box-shadow:0 0 8px white;} to{transform:scale(1.08); box-shadow:0 0 28px 12px #ffe066;} }
@@ -136,6 +139,11 @@ if (!filter_var($qrServerIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) || strpos($qr
             <h2 id="presentation-question">اختروا المربعات وأجبوا على الأسئلة</h2>
             <div id="presentation-answer"></div>
             <div id="presentation-winner"></div>
+            <div id="presentation-join-qr">
+                <p id="presentation-join-qr-message">امسح الرمز للانضمام إلى المسابقة</p>
+                <img id="presentation-join-qr-image" alt="رمز QR للانضمام إلى المسابقة">
+                <a id="presentation-join-link" target="_blank" rel="noopener"></a>
+            </div>
             <button type="button" class="btn btn-blue" id="show-join-qr" style="display:none;">عرض QR لانضمام المتسابقين</button>
             <p><a href="index.php" class="btn btn-close">العودة إلى الصفحة الرئيسية</a></p>
         </div>
@@ -425,6 +433,46 @@ if (!filter_var($qrServerIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) || strpos($qr
         const displayMode = new URLSearchParams(window.location.search).get('display') === '1';
         const queryRoom = new URLSearchParams(window.location.search).get('room');
         if (queryRoom) document.getElementById('room-code-input').value = queryRoom.toUpperCase();
+
+        const presentationJoinQr = document.getElementById('presentation-join-qr');
+        const presentationJoinQrImage = document.getElementById('presentation-join-qr-image');
+        const presentationJoinLink = document.getElementById('presentation-join-link');
+        const presentationJoinQrMessage = document.getElementById('presentation-join-qr-message');
+        presentationJoinQrImage.onload = function () {
+            presentationJoinQrMessage.textContent = 'امسح الرمز للانضمام إلى المسابقة.';
+        };
+        presentationJoinQrImage.onerror = function () {
+            presentationJoinQrMessage.textContent = 'تعذر تحميل صورة QR؛ استخدم رابط الانضمام أدناه.';
+        };
+
+        function updatePresentationJoinQr(canShowJoinQr) {
+            if (!canShowJoinQr) {
+                presentationJoinQr.style.display = 'none';
+                return;
+            }
+
+            const inviteUrl = new URL('index.php', window.location.href);
+            if (['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)) {
+                const serverIp = document.body.dataset.serverIp;
+                if (!serverIp) {
+                    presentationJoinQr.style.display = 'none';
+                    return;
+                }
+                inviteUrl.hostname = serverIp;
+            }
+            inviteUrl.search = '';
+            inviteUrl.hash = '';
+            inviteUrl.searchParams.set('room', queryRoom);
+            presentationJoinLink.href = inviteUrl.href;
+            presentationJoinLink.textContent = inviteUrl.href;
+
+            const qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=280x280&data=' +
+                encodeURIComponent(inviteUrl.href);
+            if (presentationJoinQrImage.getAttribute('src') !== qrUrl) {
+                presentationJoinQrImage.src = qrUrl;
+            }
+            presentationJoinQr.style.display = 'block';
+        }
 
         const joinQrModal = document.getElementById('join-qr-modal');
         const joinQrImage = document.getElementById('join-qr-image');
@@ -839,6 +887,7 @@ if (!filter_var($qrServerIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) || strpos($qr
                 presentationState = state;
                 const canShowJoinQr = state.status === 'lobby' && state.players_count < state.max_players;
                 document.getElementById('show-join-qr').style.display = canShowJoinQr ? 'inline-block' : 'none';
+                updatePresentationJoinQr(canShowJoinQr);
                 if (!canShowJoinQr) joinQrModal.style.display = 'none';
                 const latest = state.results && state.results.length ? state.results[state.results.length - 1] : null;
                 const latestResultKey = latest ? `${latest.resolved_at || ''}:${latest.cell}:${latest.team || 'none'}` : null;
