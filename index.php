@@ -1,4 +1,16 @@
 <?php
+$displayMode = ($_GET['display'] ?? '') === '1';
+$hasRoom = isset($_GET['room']);
+if (!$displayMode && !$hasRoom) {
+    require_once __DIR__ . '/database.php';
+    $conn = letters_game_db_connection();
+    $latestRoom = $conn->query("SELECT room_code FROM game_rooms WHERE status IN ('lobby', 'playing') ORDER BY CASE status WHEN 'lobby' THEN 0 ELSE 1 END, created_at DESC, id DESC LIMIT 1")->fetch_assoc();
+    if ($latestRoom) {
+        header('Location: index.php?display=1&room=' . rawurlencode($latestRoom['room_code']));
+        exit;
+    }
+}
+
 $qrServerIp = gethostbyname(gethostname());
 if (!filter_var($qrServerIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) || strpos($qrServerIp, '127.') === 0) {
     $qrServerIp = '';
@@ -455,9 +467,6 @@ if (!filter_var($qrServerIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) || strpos($qr
                     ? 'لا يمكن للهاتف فتح localhost. أدخل عنوان IP لهذا الكمبيوتر على الشبكة، مثل http://192.168.1.20:8080/letters_game/index.php، ثم أنشئ الرمز.'
                     : 'اضغط «إنشاء رمز QR» لعرض رابط الانضمام.';
             joinQrModal.style.display = 'flex';
-            if (/^[A-Z0-9]{6}$/.test(code) && baseUrlInput.value) {
-                    document.getElementById('generate-join-qr').click();
-            }
             if (/^[A-Z0-9]{6}$/.test(code) && baseUrlInput.value) {
                 document.getElementById('generate-join-qr').click();
             }
