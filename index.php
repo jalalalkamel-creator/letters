@@ -1,16 +1,4 @@
 <?php
-$displayMode = ($_GET['display'] ?? '') === '1';
-$hasRoom = isset($_GET['room']);
-if (!$displayMode && !$hasRoom) {
-    require_once __DIR__ . '/database.php';
-    $conn = letters_game_db_connection();
-    $latestRoom = $conn->query("SELECT room_code FROM game_rooms WHERE status IN ('lobby', 'playing') ORDER BY CASE status WHEN 'lobby' THEN 0 ELSE 1 END, created_at DESC, id DESC LIMIT 1")->fetch_assoc();
-    if ($latestRoom) {
-        header('Location: index.php?display=1&room=' . rawurlencode($latestRoom['room_code']));
-        exit;
-    }
-}
-
 $qrServerIp = gethostbyname(gethostname());
 if (!filter_var($qrServerIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) || strpos($qrServerIp, '127.') === 0) {
     $qrServerIp = '';
@@ -149,6 +137,7 @@ if (!filter_var($qrServerIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) || strpos($qr
             <div id="presentation-answer"></div>
             <div id="presentation-winner"></div>
             <button type="button" class="btn btn-blue" id="show-join-qr" style="display:none;">عرض QR لانضمام المتسابقين</button>
+            <p><a href="index.php" class="btn btn-close">العودة إلى الصفحة الرئيسية</a></p>
         </div>
     </section>
 
