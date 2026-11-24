@@ -16,5 +16,47 @@ function letters_game_db_connection()
 
     $conn = new mysqli(LETTERS_DB_HOST, LETTERS_DB_USER, LETTERS_DB_PASSWORD, LETTERS_DB_NAME);
     $conn->set_charset('utf8mb4');
+    letters_seed_questions($conn);
     return $conn;
+}
+
+// ينشئ جدول الأسئلة ويملأه من questions_data.csv عند أول تشغيل إذا كان فارغاً
+function letters_seed_questions($conn)
+{
+    static $done = false;
+    if ($done) {
+        return;
+    }
+    $done = true;
+
+    $conn->query("CREATE TABLE IF NOT EXISTS questions (
+        id INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
+        letter VARCHAR(5) NOT NULL,
+        question TEXT NOT NULL,
+        answer TEXT NOT NULL
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    $count = $conn->query('SELECT COUNT(*) AS c FROM questions');
+    if (!$count || (int)$count->fetch_assoc()['c'] > 0) {
+        return;
+    }
+
+    $file = __DIR__ . '/questions_data.csv';
+    if (!is_readable($file) || ($handle = fopen($file, 'r')) === false) {
+        return;
+    }
+    $stmt = $conn->prepare('INSERT INTO questions (letter, question, answer) VALUES (?, ?, ?)');
+    $first = true;
+    while (($row = fgetcsv($handle)) !== false) {
+        if ($first) {
+            $first = false;
+            continue; // سطر العناوين
+        }
+        if (count($row) < 3 || trim($row[0]) === '') {
+            continue;
+        }
+        $stmt->bind_param('sss', $row[0], $row[1], $row[2]);
+        $stmt->execute();
+    }
+    fclose($handle);
 }
