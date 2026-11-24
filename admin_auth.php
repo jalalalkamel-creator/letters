@@ -20,6 +20,14 @@ function ensure_admin_auth_table($conn)
         locked_until BIGINT DEFAULT NULL
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
     $conn->query('INSERT IGNORE INTO admin_credentials (id) VALUES (1)');
+
+    // استعادة كلمة مرور المشرف من متغير بيئة (hash فقط) عندما لا تكون معيّنة بعد
+    $seedHash = getenv('LETTERS_ADMIN_PASSWORD_HASH');
+    if ($seedHash !== false && $seedHash !== '' && password_get_info($seedHash)['algo'] !== null) {
+        $seed = $conn->prepare('UPDATE admin_credentials SET password_hash = ? WHERE id = 1 AND password_hash IS NULL');
+        $seed->bind_param('s', $seedHash);
+        $seed->execute();
+    }
 }
 
 function is_admin_authenticated()
