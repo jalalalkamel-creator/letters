@@ -135,6 +135,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' &&
     exit('انتهت صلاحية الطلب. حدّث الصفحة ثم حاول مجدداً.');
 }
 
+$conn->query("CREATE TABLE IF NOT EXISTS game_rooms (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+    room_code CHAR(6) NOT NULL UNIQUE,
+    max_players INT NOT NULL,
+    status VARCHAR(12) NOT NULL DEFAULT 'lobby',
+    board_json LONGTEXT NOT NULL,
+    current_team VARCHAR(4) NOT NULL DEFAULT 'red',
+    winner VARCHAR(4) DEFAULT NULL,
+    moves_json LONGTEXT NOT NULL,
+    admin_token CHAR(64) DEFAULT NULL,
+    timer_seconds INT NOT NULL DEFAULT 60,
+    timer_deadline BIGINT DEFAULT NULL,
+    answer_mode VARCHAR(20) NOT NULL DEFAULT 'admin_judged',
+    title VARCHAR(160) NOT NULL DEFAULT 'مسابقة الحروف التفاعلية',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 $activeRooms = $conn->query("SELECT room_code, status, created_at FROM game_rooms WHERE status IN ('lobby', 'playing') ORDER BY created_at DESC LIMIT 30")->fetch_all(MYSQLI_ASSOC);
 $qrServerIp = gethostbyname(gethostname());
 if (!filter_var($qrServerIp, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) || strpos($qrServerIp, '127.') === 0) {
